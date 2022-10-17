@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use solana_program::clock::Clock
+use solana_program::clock::Clock;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
 use spl_token::instruction::AuthorityType;
 
@@ -14,7 +14,6 @@ pub mod solana_pay {
     pub fn initialize(
         ctx: Context<Initialize>,
         _vault_account_bump: u8,
-        // merchant_amount: u64,
         buyer_amount: u64,
     ) -> Result<()> {
         ctx.accounts.escrow_account.merchant_key = *ctx.accounts.merchant.key;
@@ -29,8 +28,8 @@ pub mod solana_pay {
 
         ctx.accounts.escrow_account.buyer_amount = buyer_amount;
         let clock = Clock::get()?;
-        ctx.accounts.escrow_account.escrow_account.create_time = clock.unix_timestamp; 
-        ctx.accounts.escrow_account.escrow_account.end_time = clock.unix_timestamp + 300; 
+        ctx.accounts.escrow_account.create_time = clock.unix_timestamp; 
+        ctx.accounts.escrow_account.end_time = clock.unix_timestamp + 300; 
 
         let (vault_authority, _vault_authority_bump) =
             Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
@@ -159,7 +158,7 @@ pub struct EscrowAccount {
     pub payment_authority: Pubkey,
     pub buyer_amount: u64,
     pub create_time: i64,
-    pub end_time: i64,
+    pub end_time: i64
 
 }
 
