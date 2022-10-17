@@ -31,7 +31,6 @@ pub mod solana_pay {
         let clock = Clock::get()?;
         ctx.accounts.escrow_account.escrow_account.create_time = clock.unix_timestamp; 
         ctx.accounts.escrow_account.escrow_account.end_time = clock.unix_timestamp + 300; 
-        
 
         let (vault_authority, _vault_authority_bump) =
             Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
@@ -48,13 +47,6 @@ pub mod solana_pay {
         let (_vault_authority, vault_authority_bump) =
             Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
         let authority_seeds = &[&ESCROW_PDA_SEED[..], &[vault_authority_bump]];
-
-        token::transfer(
-            ctx.accounts
-                .into_transfer_to_merchant_context()
-                .with_signer(&[&authority_seeds[..]]),
-            ctx.accounts.escrow_account.merchant_amount,
-        )?;
 
         token::close_account(
             ctx.accounts
@@ -86,7 +78,7 @@ pub mod solana_pay {
 }
 
 #[derive(Accounts)]
-#[instruction(vault_account_bump: u8, merchant_amount: u64)]
+#[instruction(vault_account_bump: u8)]
 pub struct Initialize<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
@@ -101,11 +93,6 @@ pub struct Initialize<'info> {
         token::authority = merchant,
     )]
     pub vault_account: Account<'info, TokenAccount>,
-    // #[account(
-    //     mut,
-    //     constraint = merchant_deposit_token_account.amount >= merchant_amount
-    // )]
-    // pub merchant_deposit_token_account: Account<'info, TokenAccount>,
     pub merchant_receive_token_account: Account<'info, TokenAccount>,
     #[account(zero)]
     pub escrow_account: Box<Account<'info, EscrowAccount>>,
@@ -125,8 +112,6 @@ pub struct Cancel<'info> {
     pub vault_account: Account<'info, TokenAccount>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub vault_authority: AccountInfo<'info>,
-    // #[account(mut)]
-    // pub merchant_deposit_token_account: Account<'info, TokenAccount>,
     #[account(
         mut,
         constraint = escrow_account.merchant_key == *merchant.key,
@@ -227,8 +212,8 @@ impl<'info> Exchange<'info> {
 
 }
 
-pub fn check_valid_time(create_ts: i64, current_ts: i64, margin_period: u64) -> bool {
-    if current_ts <= (create_ts + margin_period){
+pub fn check_valid_time(end_time: i64, current_ts: i64) -> bool {
+    if current_ts <= end_time{
         return true;
     }
     false
