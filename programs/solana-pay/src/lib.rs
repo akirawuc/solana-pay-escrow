@@ -28,7 +28,9 @@ pub mod solana_pay {
             .key;
 
         ctx.accounts.escrow_account.buyer_amount = buyer_amount;
-        ctx.accounts.escrow_account.escrow_account.create_time = Sysvar::clock::Clock();
+        let clock = Clock::get()?;
+        ctx.accounts.escrow_account.escrow_account.create_time = clock.unix_timestamp; 
+        ctx.accounts.escrow_account.escrow_account.end_time = clock.unix_timestamp + 300; 
         
 
         let (vault_authority, _vault_authority_bump) =
@@ -171,7 +173,8 @@ pub struct EscrowAccount {
     pub merchant_receive_token_account: Pubkey,
     pub payment_authority: Pubkey,
     pub buyer_amount: u64,
-    pub create_time: i64
+    pub create_time: i64,
+    pub end_time: i64,
 
 }
 
