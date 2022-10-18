@@ -221,7 +221,12 @@ describe('solana-pay-escrow', () => {
     console.log(`merchantMainAccount   ${merchantMainAccount.publicKey.toString()}`);
     console.log(`mint      ${mintB.toString()}`);
     console.log(`vaultAccount    ${vault_account_pda.toString()}`);
+    // console.log(escrowPDA);
     console.log(`merchantReceiveTokenAccount    ${merchantTokenAccountB.address.toString()}`);
+    const escrowAccount = anchor.web3.Keypair.generate();
+    let preInstructions = [] as anchor.web3.TransactionInstruction[];
+    let need_add = await program.account.escrowAccount.createInstruction(escrowAccount);
+    preInstructions.push(need_add);
     await program.methods.initialize(
         vault_account_bump,
         new anchor.BN(paymentAmount)).accounts(
@@ -229,12 +234,13 @@ describe('solana-pay-escrow', () => {
             merchant: merchantMainAccount.publicKey,
             mint: mintB,
             vaultAccount: vault_account_pda,
+            vaultAuthority: vault_authority_pda,
             merchantReceiveTokenAccount: merchantTokenAccountB.address,
-            escrowAccount: vault_authority_pda,
+            escrowAccount: escrowAccount.publicKey,
             systemProgram: anchor.web3.SystemProgram.programId,
             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
             tokenProgram: TOKEN_PROGRAM_ID
-          }).signers([merchantMainAccount]).rpc();
+          }).signers([merchantMainAccount, escrowAccount]).preInstructions(preInstructions).rpc();
 
 
     // let _vault = await mintB.getAccountInfo(vault_account_pda);
@@ -245,10 +251,10 @@ describe('solana-pay-escrow', () => {
       "processed",
       TOKEN_PROGRAM_ID
     );
+    console.log(`GOT         ${escrowAccount.publicKey}`);
 
-    let _escrowAccount = await program.account.escrowAccount.fetch(
-      vault_authority_pda
-    );
+    let _escrowAccount = await program.account.escrowAccount.fetch(escrowAccount.publicKey);
+    console.log(_escrowAccount);
 
     // // Check that the new owner is the PDA.
     assert.ok(_vault.owner.equals(vault_authority_pda));

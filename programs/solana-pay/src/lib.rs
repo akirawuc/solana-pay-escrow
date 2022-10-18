@@ -1,4 +1,3 @@
-use std::mem::size_of;
 use anchor_lang::prelude::*;
 use solana_program::clock::Clock;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
@@ -28,9 +27,9 @@ pub mod solana_pay {
             .key;
 
         ctx.accounts.escrow_account.buyer_amount = buyer_amount;
-        let clock = Clock::get()?;
-        ctx.accounts.escrow_account.create_time = clock.unix_timestamp; 
-        ctx.accounts.escrow_account.end_time = clock.unix_timestamp + 300; 
+        // let clock = Clock::get()?;
+        // ctx.accounts.escrow_account.create_time = clock.unix_timestamp; 
+        // ctx.accounts.escrow_account.end_time = clock.unix_timestamp + 300; 
 
         let (vault_authority, _vault_authority_bump) =
             Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
@@ -69,29 +68,30 @@ pub mod solana_pay {
             ctx.accounts.escrow_account.end_time, 
             time_now
             ) {
-            token::transfer(
-                ctx.accounts.into_transfer_to_merchant_context(),
-                ctx.accounts.escrow_account.buyer_amount,
-            )?;
+        token::transfer(
+            ctx.accounts.into_transfer_to_merchant_context(),
+            ctx.accounts.escrow_account.buyer_amount,
+        )?;
 
-            token::close_account(
-                ctx.accounts
-                    .into_close_context()
-                    .with_signer(&[&authority_seeds[..]]),
-            )?;
+        token::close_account(
+            ctx.accounts
+                .into_close_context()
+                .with_signer(&[&authority_seeds[..]]),
+        )?;
 
         } else {
-            // // To be modified to return the token back to buyer
-            // token::transfer(
-            //     ctx.accounts.into_transfer_to_merchant_context(),
-            //     ctx.accounts.escrow_account.buyer_amount,
-            // )?;
 
-            token::close_account(
-                ctx.accounts
-                    .into_close_context()
-                    .with_signer(&[&authority_seeds[..]]),
-            )?;
+        // To be modified to return the token back to buyer
+        token::transfer(
+            ctx.accounts.into_transfer_to_merchant_context(),
+            ctx.accounts.escrow_account.buyer_amount,
+        )?;
+
+        token::close_account(
+            ctx.accounts
+                .into_close_context()
+                .with_signer(&[&authority_seeds[..]]),
+        )?;
 
         }
         Ok(())
@@ -110,20 +110,20 @@ pub struct Initialize<'info> {
         seeds = [b"token-seed".as_ref()],
         bump,
         payer = merchant,
-        token::mint = mint,
         token::authority = merchant,
+        token::mint = mint,
     )]
     pub vault_account: Account<'info, TokenAccount>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    #[account(
+        seeds = [b"escrow".as_ref()],
+        bump
+    )]
+    pub vault_authority: AccountInfo<'info>,
     pub merchant_receive_token_account: Account<'info, TokenAccount>,
     /// change to pda, like the vault account above.
-    #[account(
-        init,
-        seeds = [b"escrow".as_ref(), merchant.key().as_ref()],
-        bump,
-        payer = merchant,
-        space = size_of::<EscrowAccount>()
-    )]
-    pub escrow_account: Account<'info, EscrowAccount>,
+    #[account(zero)]
+    pub escrow_account: Box<Account<'info, EscrowAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
