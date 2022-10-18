@@ -2,7 +2,7 @@
 seeds = false
 skip-lint = false
 [programs.devnet]
-solana_pay = "9PCD9v9qBCi5t9fKDc2LqiXtsjjQVKizQc4KQG3yEYdh"
+solana_pay = "HSSp1Se1k21b27EepLuKEXfntvtMZyJ4LK761GLanFLr"
 
 [registry]
 url = "https://api.apr.dev"
