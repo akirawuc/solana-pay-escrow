@@ -214,27 +214,21 @@ describe('solana-pay-escrow', () => {
 
     // const mintBPubkey = new anchor.web3.PublicKey(mintB);
     // console.log(mintB);
-    // console.log(program.rpc);
-    console.log(anchor.web3.SystemProgram);
-    await program.rpc.initialize(
-      vault_account_bump,
-      new anchor.BN(paymentAmount),
-      {
-        accounts: {
-          merchant: merchantMainAccount.publicKey,
-          mint: mintB,
-          vaultAccount: vault_account_pda,
-          merchantReceiveTokenAccount: merchantTokenAccountB.address,
-          escrowAccount: escrowAccount.publicKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-          tokenProgram: TOKEN_PROGRAM_ID
-        },
-        instructions: [
-          await program.account.escrowAccount.createInstruction(escrowAccount),
-        ],
-        signers: [escrowAccount, merchantMainAccount]
-      });
+    console.log(program);
+    await program.methods.
+      initialize(
+        vault_account_bump,
+        new anchor.BN(paymentAmount)).accounts(
+          {
+            merchant: merchantMainAccount.publicKey,
+            mint: mintB,
+            vaultAccount: vault_account_pda,
+            merchantReceiveTokenAccount: merchantTokenAccountB.address,
+            escrowAccount: escrowAccount.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+            tokenProgram: TOKEN_PROGRAM_ID
+          }).signers([escrowAccount, merchantMainAccount]);
 
     // let _vault = await mintB.getAccountInfo(vault_account_pda);
 
