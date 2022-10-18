@@ -33,6 +33,7 @@ pub mod solana_pay {
 
         let (vault_authority, _vault_authority_bump) =
             Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
+
         token::set_authority(
             ctx.accounts.into_set_authority_context(),
             AuthorityType::AccountOwner,
@@ -61,6 +62,12 @@ pub mod solana_pay {
             Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
         let authority_seeds = &[&ESCROW_PDA_SEED[..], &[vault_authority_bump]];
 
+        let clock = Clock::get()?;
+        let time_now = clock.unix_timestamp;
+        if check_valid_time(
+            ctx.accounts.escrow_account.end_time, 
+            time_now
+            ) {
         token::transfer(
             ctx.accounts.into_transfer_to_merchant_context(),
             ctx.accounts.escrow_account.buyer_amount,
@@ -72,6 +79,21 @@ pub mod solana_pay {
                 .with_signer(&[&authority_seeds[..]]),
         )?;
 
+        } else {
+
+        // To be modified to return the token back to buyer
+        token::transfer(
+            ctx.accounts.into_transfer_to_merchant_context(),
+            ctx.accounts.escrow_account.buyer_amount,
+        )?;
+
+        token::close_account(
+            ctx.accounts
+                .into_close_context()
+                .with_signer(&[&authority_seeds[..]]),
+        )?;
+
+        }
         Ok(())
     }
 }
@@ -128,8 +150,6 @@ pub struct Exchange<'info> {
     pub buyer: AccountInfo<'info>,
     #[account(mut)]
     pub buyer_deposit_token_account: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub buyer_receive_token_account: Box<Account<'info, TokenAccount>>,
     #[account(mut)]
     pub merchant_receive_token_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
@@ -199,6 +219,7 @@ impl<'info> Exchange<'info> {
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }
+
 
     fn into_close_context(&self) -> CpiContext<'_, '_, '_, 'info, CloseAccount<'info>> {
         let cpi_accounts = CloseAccount {
