@@ -3,7 +3,7 @@ use solana_program::clock::Clock;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
 use spl_token::instruction::AuthorityType;
 
-declare_id!("9PCD9v9qBCi5t9fKDc2LqiXtsjjQVKizQc4KQG3yEYdh");
+declare_id!("HSSp1Se1k21b27EepLuKEXfntvtMZyJ4LK761GLanFLr");
 
 #[program]
 pub mod solana_pay {
@@ -115,6 +115,7 @@ pub struct Initialize<'info> {
     )]
     pub vault_account: Account<'info, TokenAccount>,
     pub merchant_receive_token_account: Account<'info, TokenAccount>,
+    /// change to pda, like the vault account above.
     #[account(zero)]
     pub escrow_account: Box<Account<'info, EscrowAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account

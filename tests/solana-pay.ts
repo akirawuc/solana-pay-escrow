@@ -15,7 +15,7 @@ import {
 } from '@solana/spl-token';
 import { assert } from "chai";
 
-describe('anchor-escrow', () => {
+describe('solana-pay-escrow', () => {
   const provider = anchor.AnchorProvider.env();
 
   anchor.setProvider(provider);
@@ -23,7 +23,8 @@ describe('anchor-escrow', () => {
   const program = anchor.workspace.SolanaPay as Program<SolanaPay>;
   const wallet = provider.wallet as Wallet;
 
-  let mintB = null as Mint;
+  // let mintB = anchor.web3.Keypair.generate();
+  let mintB = null;
   let merchantTokenAccountB = null;
   let buyerTokenAccountB = null;
   let vault_account_pda = null;
@@ -124,7 +125,7 @@ describe('anchor-escrow', () => {
   });
 
   it("Initialize escrow", async () => {
-    console.log(program);
+    // console.log(program);
     let mintB = await createMint(
       provider.connection,
       wallet.payer,
@@ -212,8 +213,11 @@ describe('anchor-escrow', () => {
     vault_authority_pda = _vault_authority_pda;
 
     // const mintBPubkey = new anchor.web3.PublicKey(mintB);
-    console.log(mintB);
-    await program.rpc.initialize(
+    // console.log(mintB);
+    console.log(program);
+    // console.log(anchor.web3.SystemProgram);
+    await program.methods
+    initialize(
       vault_account_bump,
       new anchor.BN(paymentAmount),
       {
@@ -227,31 +231,34 @@ describe('anchor-escrow', () => {
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
           tokenProgram: TOKEN_PROGRAM_ID
         },
-        signers: [merchantMainAccount]
+        instructions: [
+          await program.account.escrowAccount.createInstruction(escrowAccount),
+        ],
+        signers: [escrowAccount, merchantMainAccount]
       });
 
-    // let _vault = await mintA.getAccountInfo(vault_account_pda);
+    // let _vault = await mintB.getAccountInfo(vault_account_pda);
 
-    // let _vault = await getAccount(
-    //   provider.connection,
-    //   vault_account_pda,
-    //   "processed",
-    //   TOKEN_PROGRAM_ID
-    // );
+    let _vault = await getAccount(
+      provider.connection,
+      vault_account_pda,
+      "processed",
+      TOKEN_PROGRAM_ID
+    );
 
-    // let _escrowAccount = await program.account.escrowAccount.fetch(
-    //   escrowAccount.publicKey
-    // );
+    let _escrowAccount = await program.account.escrowAccount.fetch(
+      escrowAccount.publicKey
+    );
 
     // Check that the new owner is the PDA.
-    // assert.ok(_vault.owner.equals(vault_authority_pda));
+    assert.ok(_vault.owner.equals(vault_authority_pda));
 
     // Check that the values in the escrow account match what we expect.
-    // assert.ok(_escrowAccount.merchantKey.equals(merchantMainAccount.publicKey));
-    // assert.ok(_escrowAccount.buyerAmount.toNumber() == paymentAmount);
-    // assert.ok(
-    //   _escrowAccount.merchantReceiveTokenAccount.equals(merchantTokenAccountB.address)
-    // );
+    assert.ok(_escrowAccount.merchantKey.equals(merchantMainAccount.publicKey));
+    assert.ok(_escrowAccount.buyerAmount.toNumber() == paymentAmount);
+    assert.ok(
+      _escrowAccount.merchantReceiveTokenAccount.equals(merchantTokenAccountB.address)
+    );
   });
 
   // it("Exchange escrow state", async () => {
