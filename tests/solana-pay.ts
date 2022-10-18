@@ -1,46 +1,96 @@
 import * as anchor from '@project-serum/anchor';
-import { Program } from '@project-serum/anchor';
+import { Program, Wallet } from '@project-serum/anchor';
 import NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
 import { SolanaPay } from '../target/types/solana_pay';
-import { PublicKey, SystemProgram, Transaction, Connection, Commitment } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, createMint } from "@solana/spl-token";
+import { PublicKey, SystemProgram, Transaction, Connection, Commitment, clusterApiUrl } from '@solana/web3.js';
+import {
+  TOKEN_PROGRAM_ID,
+  createMint,
+  mintTo,
+  getOrCreateAssociatedTokenAccount,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAccount
+} from '@solana/spl-token';
 import { assert } from "chai";
 
 describe('anchor-escrow', () => {
-  const commitment: Commitment = 'processed';
-  // const connection = new Connection('https://rpc-mainnet-fork.epochs.studio', { commitment, wsEndpoint: 'wss://rpc-mainnet-fork.epochs.studio/ws' });
-  // const options = anchor.Provider.defaultOptions();
-  // const wallet = NodeWallet.local();
   const provider = anchor.AnchorProvider.env();
 
   anchor.setProvider(provider);
 
   const program = anchor.workspace.AnchorEscrow as Program<SolanaPay>;
+    const wallet = provider.wallet as Wallet;
+    async function newMint() {
+        return await createMint(
+            provider.connection,
+            wallet.payer,
+            wallet.publicKey,
+            null,
+            0,
+            anchor.web3.Keypair.generate(),
+            null,
+            TOKEN_PROGRAM_ID
+        )
+    };
+    async function createTokenAccount(
+      mint: anchor.web3.PublicKey,
+      pubKey: anchor.web3.PublicKey
+      ) {
+      let tokenAccount = await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        wallet.payer,
+        mint,
+        pubKey,
+        false,
+        "processed",
+        null,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      return tokenAccount.address;
+    }
+    async function mintTokens(
+      mint,
+      tokenAccount,
+      amountToReceive
+      ) {
+      await mintTo(
+        provider.connection,
+        wallet.payer,
+        mint,
+        tokenAccount,
+        wallet.publicKey,
+        amountToReceive,
+        [wallet.payer],
+        null,
+        TOKEN_PROGRAM_ID
+      );
+    }
 
-  let mintA = null as Token;
-  let mintB = null as Token;
-  let merchantTokenAccountA = null;
+    let mintB = newMint();
   let merchantTokenAccountB = null;
-  let takerTokenAccountA = null;
   let takerTokenAccountB = null;
   let vault_account_pda = null;
   let vault_account_bump = null;
   let vault_authority_pda = null;
 
-  const takerAmount = 1000;
-  const merchantAmount = 500;
+  const paymentAmount = 500;
 
   const escrowAccount = anchor.web3.Keypair.generate();
   const payer = anchor.web3.Keypair.generate();
   const mintAuthority = anchor.web3.Keypair.generate();
   const merchantMainAccount = anchor.web3.Keypair.generate();
-  const takerMainAccount = anchor.web3.Keypair.generate();
+  const buyerMainAccount = anchor.web3.Keypair.generate();
 
   it("Initialize program state", async () => {
     // Airdropping tokens to a payer.
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(payer.publicKey, 1000000000),
-      "processed"
+    const airdropTx = await provider.connection.requestAirdrop(payer.publicKey, 1000000000);
+    const latestBlockHash = await provider.connection.getLatestBlockhash();
+    await provider.connection.confirmTransaction({
+      blockhash: latestBlockHash.blockhash,
+      lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+      signature: airdropTx
+    }
     );
 
     // Fund Main Accounts
@@ -55,7 +105,7 @@ describe('anchor-escrow', () => {
           }),
           SystemProgram.transfer({
             fromPubkey: payer.publicKey,
-            toPubkey: takerMainAccount.publicKey,
+            toPubkey: buyerMainAccount.publicKey,
             lamports: 100000000,
           })
         );
@@ -64,49 +114,19 @@ describe('anchor-escrow', () => {
       [payer]
     );
 
-    mintA = await createMint(
+    const mintB = await newMint();
+    const merchantTokenAccountB = await createTokenAccount(mintB, merchantMainAccount.publicKey);
+    const buyerTokenAccountB = await createTokenAccount(mintB, buyerMainAccount.publicKey);
+    await mintTokens(mintB, buyerTokenAccountB, paymentAmount);
+
+    let _buyerTokenAccountB = await getAccount(
       provider.connection,
-      payer,
-      mintAuthority.publicKey,
-      null,
-      0
-      // TOKEN_PROGRAM_ID
+      buyerTokenAccountB,
+      "processed",
+      TOKEN_PROGRAM_ID
     );
 
-    mintB = await createMint(
-      provider.connection,
-      payer,
-      mintAuthority.publicKey,
-      null,
-      0
-      // TOKEN_PROGRAM_ID
-    );
-
-    merchantTokenAccountA = await mintA.createAccount(merchantMainAccount.publicKey);
-    takerTokenAccountA = await mintA.createAccount(takerMainAccount.publicKey);
-
-    merchantTokenAccountB = await mintB.createAccount(merchantMainAccount.publicKey);
-    takerTokenAccountB = await mintB.createAccount(takerMainAccount.publicKey);
-
-    await mintA.mintTo(
-      merchantTokenAccountA,
-      mintAuthority.publicKey,
-      [mintAuthority],
-      merchantAmount
-    );
-
-    await mintB.mintTo(
-      takerTokenAccountB,
-      mintAuthority.publicKey,
-      [mintAuthority],
-      takerAmount
-    );
-
-    let _merchantTokenAccountA = await mintA.getAccountInfo(merchantTokenAccountA);
-    let _takerTokenAccountB = await mintB.getAccountInfo(takerTokenAccountB);
-
-    assert.ok(_merchantTokenAccountA.amount.toNumber() == merchantAmount);
-    assert.ok(_takerTokenAccountB.amount.toNumber() == takerAmount);
+    assert.ok(Number(_buyerTokenAccountB.amount) == paymentAmount);
   });
 
   it("Initialize escrow", async () => {
@@ -132,7 +152,6 @@ describe('anchor-escrow', () => {
           merchant: merchantMainAccount.publicKey,
           vaultAccount: vault_account_pda,
           mint: mintA.publicKey,
-          merchantDepositTokenAccount: merchantTokenAccountA,
           merchantReceiveTokenAccount: merchantTokenAccountB,
           escrowAccount: escrowAccount.publicKey,
           systemProgram: anchor.web3.SystemProgram.programId,
@@ -157,11 +176,7 @@ describe('anchor-escrow', () => {
 
     // Check that the values in the escrow account match what we expect.
     assert.ok(_escrowAccount.merchantKey.equals(merchantMainAccount.publicKey));
-    assert.ok(_escrowAccount.merchantAmount.toNumber() == merchantAmount);
     assert.ok(_escrowAccount.buyerAmount.toNumber() == takerAmount);
-    assert.ok(
-      _escrowAccount.merchantDepositTokenAccount.equals(merchantTokenAccountA)
-    );
     assert.ok(
       _escrowAccount.merchantReceiveTokenAccount.equals(merchantTokenAccountB)
     );
@@ -170,10 +185,8 @@ describe('anchor-escrow', () => {
   it("Exchange escrow state", async () => {
     await program.rpc.exchange({
       accounts: {
-        buyer: takerMainAccount.publicKey,
+        buyer: buyerMainAccount.publicKey,
         buyerDepositTokenAccount: takerTokenAccountB,
-        buyerReceiveTokenAccount: takerTokenAccountA,
-        merchantDepositTokenAccount: merchantTokenAccountA,
         merchantReceiveTokenAccount: merchantTokenAccountB,
         merchant: merchantMainAccount.publicKey,
         escrowAccount: escrowAccount.publicKey,
@@ -181,16 +194,12 @@ describe('anchor-escrow', () => {
         vaultAuthority: vault_authority_pda,
         tokenProgram: TOKEN_PROGRAM_ID,
       },
-      signers: [takerMainAccount]
+      signers: [buyerMainAccount]
     });
 
-    let _takerTokenAccountA = await mintA.getAccountInfo(takerTokenAccountA);
     let _takerTokenAccountB = await mintB.getAccountInfo(takerTokenAccountB);
-    let _merchantTokenAccountA = await mintA.getAccountInfo(merchantTokenAccountA);
     let _merchantTokenAccountB = await mintB.getAccountInfo(merchantTokenAccountB);
 
-    assert.ok(_takerTokenAccountA.amount.toNumber() == merchantAmount);
-    assert.ok(_merchantTokenAccountA.amount.toNumber() == 0);
     assert.ok(_merchantTokenAccountB.amount.toNumber() == takerAmount);
     assert.ok(_takerTokenAccountB.amount.toNumber() == 0);
   });
@@ -213,7 +222,6 @@ describe('anchor-escrow', () => {
           merchant: merchantMainAccount.publicKey,
           vaultAccount: vault_account_pda,
           mint: mintA.publicKey,
-          merchantDepositTokenAccount: merchantTokenAccountA,
           merchantReceiveTokenAccount: merchantTokenAccountB,
           escrowAccount: escrowAccount.publicKey,
           systemProgram: anchor.web3.SystemProgram.programId,
@@ -231,7 +239,6 @@ describe('anchor-escrow', () => {
     await program.rpc.cancel({
       accounts: {
         merchant: merchantMainAccount.publicKey,
-        merchantDepositTokenAccount: merchantTokenAccountA,
         vaultAccount: vault_account_pda,
         vaultAuthority: vault_authority_pda,
         escrowAccount: escrowAccount.publicKey,
