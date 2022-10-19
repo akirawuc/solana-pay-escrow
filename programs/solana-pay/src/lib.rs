@@ -4,7 +4,7 @@ use solana_program::clock::Clock;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
 use spl_token::instruction::AuthorityType;
 
-declare_id!("6U98LYTqD2ebB3eJyb5ww9kkna9N9M27wszB9rvd6z1r");
+declare_id!("5Ei4589XAC6DPgCK6ptcZW2aC8eJksVo5RGXZdymWEuH");
 
 #[program]
 pub mod solana_pay {
@@ -15,7 +15,7 @@ pub mod solana_pay {
 
     pub fn initialize(
         ctx: Context<Initialize>,
-        _vault_account_bump: u8,
+        // _vault_account_bump: u8,
         buyer_amount: u64,
     ) -> Result<()> {
         ctx.accounts.escrow_account.merchant_key = *ctx.accounts.merchant.key;
@@ -60,12 +60,16 @@ pub mod solana_pay {
     }
 
     pub fn exchange(ctx: Context<Exchange>) -> Result<()> {
+
         let (_vault_authority, vault_authority_bump) =
             Pubkey::find_program_address(&[VAULT_AUTH_PDA_SEED], ctx.program_id);
+
         let authority_seeds = &[&VAULT_AUTH_PDA_SEED[..], &[vault_authority_bump]];
 
         let clock = Clock::get()?;
+
         let time_now = clock.unix_timestamp;
+
         if check_valid_time(
             ctx.accounts.escrow_account.end_time, 
             time_now
@@ -101,7 +105,7 @@ pub mod solana_pay {
 }
 
 #[derive(Accounts)]
-#[instruction(nonce: u8)]
+#[instruction()]
 pub struct Initialize<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
@@ -109,7 +113,7 @@ pub struct Initialize<'info> {
     pub mint: Box<Account<'info, Mint>>,
     #[account(
         init,
-        seeds = [b"token_seed".as_ref(), &[nonce]],
+        seeds = [b"token_seed".as_ref()],
         bump,
         payer = merchant,
         token::authority = merchant,
@@ -118,7 +122,7 @@ pub struct Initialize<'info> {
     pub vault_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(
-        seeds = [b"vault_auth".as_ref(), &[nonce]],
+        seeds = [b"vault_auth".as_ref()],
         bump
     )]
     pub vault_authority: AccountInfo<'info>,
@@ -126,7 +130,7 @@ pub struct Initialize<'info> {
     /// change to pda, like the vault account above.
     #[account(
         init,
-        seeds = [b"escrow".as_ref(), &[nonce]],
+        seeds = [b"escrow".as_ref()],
         bump,
         payer = merchant,
         space = size_of::<EscrowAccount>() + 40
