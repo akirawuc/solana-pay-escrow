@@ -351,147 +351,146 @@ describe('solana-pay-escrow', () => {
     assert.ok(Number(_buyerTokenAccountB.amount) == 0);
   });
 
-  /*
   it("Initialize escrow and cancel escrow", async () => {
     // Put back tokens into merchant token A account.
-    // let mintB = await createMint(
-    //   provider.connection,
-    //   wallet.payer,
-    //   wallet.publicKey,
-    //   null,
-    //   0,
-    //   anchor.web3.Keypair.generate(),
-    //   null,
-    //   TOKEN_PROGRAM_ID
-    // );
-    // // Airdropping tokens to a payer.
-    // const airdropTx = await provider.connection.requestAirdrop(payer.publicKey, 1000000000);
-    // const latestBlockHash = await provider.connection.getLatestBlockhash();
-    // await provider.connection.confirmTransaction({
-    //   blockhash: latestBlockHash.blockhash,
-    //   lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
-    //   signature: airdropTx
-    // });
+    let mintB = await createMint(
+      provider.connection,
+      wallet.payer,
+      wallet.publicKey,
+      null,
+      0,
+      anchor.web3.Keypair.generate(),
+      null,
+      TOKEN_PROGRAM_ID
+    );
+    // Airdropping tokens to a payer.
+    const airdropTx = await provider.connection.requestAirdrop(payer.publicKey, 1000000000);
+    const latestBlockHash = await provider.connection.getLatestBlockhash();
+    await provider.connection.confirmTransaction({
+      blockhash: latestBlockHash.blockhash,
+      lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
+      signature: airdropTx
+    });
 
-    // // Fund Main Accounts
-    // await provider.sendAndConfirm(
-    //   (() => {
-    //     const tx = new Transaction();
-    //     tx.add(
-    //       SystemProgram.transfer({
-    //         fromPubkey: payer.publicKey,
-    //         toPubkey: merchantMainAccount.publicKey,
-    //         lamports: 100000000,
-    //       }),
-    //       SystemProgram.transfer({
-    //         fromPubkey: payer.publicKey,
-    //         toPubkey: buyerMainAccount.publicKey,
-    //         lamports: 100000000,
-    //       })
-    //     );
-    //     return tx;
-    //   })(),
-    //   [payer]
-    // );
+    // Fund Main Accounts
+    await provider.sendAndConfirm(
+      (() => {
+        const tx = new Transaction();
+        tx.add(
+          SystemProgram.transfer({
+            fromPubkey: payer.publicKey,
+            toPubkey: merchantMainAccount.publicKey,
+            lamports: 100000000,
+          }),
+          SystemProgram.transfer({
+            fromPubkey: payer.publicKey,
+            toPubkey: buyerMainAccount.publicKey,
+            lamports: 100000000,
+          })
+        );
+        return tx;
+      })(),
+      [payer]
+    );
 
-    // console.log('[INFO] Finish funding main accounts');
-    // merchantTokenAccountB = await getOrCreateAssociatedTokenAccount(
-    //   provider.connection,
-    //   wallet.payer,
-    //   mintB,
-    //   merchantMainAccount.publicKey,
-    //   false,
-    //   "processed",
-    //   null,
-    //   TOKEN_PROGRAM_ID,
-    //   ASSOCIATED_TOKEN_PROGRAM_ID);
+    console.log('[INFO] Finish funding main accounts');
+    merchantTokenAccountB = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      wallet.payer,
+      mintB,
+      merchantMainAccount.publicKey,
+      false,
+      "processed",
+      null,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID);
 
-    // console.log('[INFO] Finish creating merchant token accounts');
-    // buyerTokenAccountB = await getOrCreateAssociatedTokenAccount(
-    //   provider.connection,
-    //   wallet.payer,
-    //   mintB,
-    //   buyerMainAccount.publicKey,
-    //   false,
-    //   "processed",
-    //   null,
-    //   TOKEN_PROGRAM_ID,
-    //   ASSOCIATED_TOKEN_PROGRAM_ID);
+    console.log('[INFO] Finish creating merchant token accounts');
+    buyerTokenAccountB = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      wallet.payer,
+      mintB,
+      buyerMainAccount.publicKey,
+      false,
+      "processed",
+      null,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID);
 
-    // console.log('[INFO] Finish creating buyer token accounts');
+    console.log('[INFO] Finish creating buyer token accounts');
 
-    // await mintTo(
-    //   provider.connection,
-    //   wallet.payer,
-    //   mintB,
-    //   buyerTokenAccountB.address,
-    //   wallet.publicKey,
-    //   paymentAmount,
-    //   [wallet.payer],
-    //   null,
-    //   TOKEN_PROGRAM_ID);
+    await mintTo(
+      provider.connection,
+      wallet.payer,
+      mintB,
+      buyerTokenAccountB.address,
+      wallet.publicKey,
+      paymentAmount,
+      [wallet.payer],
+      null,
+      TOKEN_PROGRAM_ID);
 
-    // console.log('[INFO] Finish minting to buyer token accounts');
-    // // const nonce = Math.floor(Math.random() * 255);
+    console.log('[INFO] Finish minting to buyer token accounts');
+    // const nonce = Math.floor(Math.random() * 255);
 
-    // const [_vault_account_pda, _vault_account_bump] = await PublicKey.findProgramAddress(
-    //   [Buffer.from(anchor.utils.bytes.utf8.encode("token_seed"))
-    //   // new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
-    //   ],
-    //   program.programId
-    // );
-    // vault_account_pda = _vault_account_pda;
-    // vault_account_bump = _vault_account_bump;
+    const [_vault_account_pda, _vault_account_bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("token_seed"))
+      // new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
+      ],
+      program.programId
+    );
+    vault_account_pda = _vault_account_pda;
+    vault_account_bump = _vault_account_bump;
 
-    // console.log('[INFO] Finish creating vault pda');
+    console.log('[INFO] Finish creating vault pda');
 
-    // const [_vault_authority_pda, _vault_authority_bump] = await PublicKey.findProgramAddress(
-    //   [Buffer.from(anchor.utils.bytes.utf8.encode("vault_auth"))
-    //   // new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
-    //   ],
-    //   program.programId
-    // );
-    // vault_authority_pda = _vault_authority_pda;
-    // vault_authority_bump = _vault_authority_bump;
+    const [_vault_authority_pda, _vault_authority_bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("vault_auth"))
+      // new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
+      ],
+      program.programId
+    );
+    vault_authority_pda = _vault_authority_pda;
+    vault_authority_bump = _vault_authority_bump;
 
-    // console.log('[INFO] Finish creating vault authority pda');
+    console.log('[INFO] Finish creating vault authority pda');
 
-    // const [_escrow_account_pda, _escrow_account_bump] = await PublicKey.findProgramAddress(
-    //   [Buffer.from(anchor.utils.bytes.utf8.encode("escrow"))
-    //   // new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
-    //   ],
-    //   program.programId
-    // );
-    // escrow_account_pda = _escrow_account_pda;
-    // escrow_account_bump = _escrow_account_bump;
+    const [_escrow_account_pda, _escrow_account_bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("escrow"))
+      // new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
+      ],
+      program.programId
+    );
+    escrow_account_pda = _escrow_account_pda;
+    escrow_account_bump = _escrow_account_bump;
 
-    // console.log('[INFO] Finish creating escrow account pda');
+    console.log('[INFO] Finish creating escrow account pda');
 
-    // console.log(`merchantMainAccount   ${merchantMainAccount.publicKey.toString()}`);
-    // console.log(`mint   ${mintB.toString()}`);
-    // console.log(`vaultAccount    ${vault_account_pda.toString()}`);
-    // console.log(`escrow_account_pda    ${escrow_account_pda.toString()}`);
-    // console.log(`merchantReceiveTokenAccount    ${merchantTokenAccountB.address.toString()}`);
-    // const tx = await program.methods.initialize(
-    //   new anchor.BN(paymentAmount)).accounts(
-    //     {
-    //       merchant: merchantMainAccount.publicKey,
-    //       mint: mintB,
-    //       vaultAccount: vault_account_pda,
-    //       vaultAuthority: vault_authority_pda,
-    //       merchantReceiveTokenAccount: merchantTokenAccountB.address,
-    //       escrowAccount: escrow_account_pda,
-    //       systemProgram: anchor.web3.SystemProgram.programId,
-    //       rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-    //       tokenProgram: TOKEN_PROGRAM_ID
-    //     }).signers([merchantMainAccount]).transaction();
+    console.log(`merchantMainAccount   ${merchantMainAccount.publicKey.toString()}`);
+    console.log(`mint   ${mintB.toString()}`);
+    console.log(`vaultAccount    ${vault_account_pda.toString()}`);
+    console.log(`escrow_account_pda    ${escrow_account_pda.toString()}`);
+    console.log(`merchantReceiveTokenAccount    ${merchantTokenAccountB.address.toString()}`);
+    const tx = await program.methods.initialize(
+      new anchor.BN(paymentAmount)).accounts(
+        {
+          merchant: merchantMainAccount.publicKey,
+          mint: mintB,
+          vaultAccount: vault_account_pda,
+          vaultAuthority: vault_authority_pda,
+          merchantReceiveTokenAccount: merchantTokenAccountB.address,
+          escrowAccount: escrow_account_pda,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          tokenProgram: TOKEN_PROGRAM_ID
+        }).signers([merchantMainAccount]).transaction();
 
-    // console.log("[INFO] Showing the logs");
-    // tx.feePayer = merchantMainAccount.publicKey;
-    // tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+    console.log("[INFO] Showing the logs");
+    tx.feePayer = merchantMainAccount.publicKey;
+    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
-    // console.log(tx.serializeMessage().toString("base64"));
-    // const logs = await provider.sendAndConfirm(tx, [merchantMainAccount]);
+    console.log(tx.serializeMessage().toString("base64"));
+    const logs = await provider.sendAndConfirm(tx, [merchantMainAccount]);
 
     //   // Cancel the escrow.
     const cancel_tx = await program.methods.cancel().accounts(
@@ -509,10 +508,10 @@ describe('solana-pay-escrow', () => {
     console.log(cancel_tx.serializeMessage().toString("base64"));
     const cancel_logs = await provider.sendAndConfirm(cancel_tx, [merchantMainAccount]);
   //   // Check the final owner should be the provider public key.
-  //   const _merchantTokenAccountA = await mintA.getAccountInfo(merchantTokenAccountA);
-  //   assert.ok(_merchantTokenAccountA.owner.equals(merchantMainAccount.publicKey));
-
+    const _escrow_program = await connection.getAccountInfo(escrowAccount.publicKey);
+    // const _merchantTokenAccountA = await mintA.getAccountInfo(merchantTokenAccountA);
+    assert.ok(_escrow_program == null);
   //   // Check all the funds are still there.
-  //   assert.ok(_merchantTokenAccountA.amount.toNumber() == merchantAmount);
-  }); */
+    // assert.ok(_merchantTokenAccountA.amount.toNumber() == merchantAmount);
+  });
 });
