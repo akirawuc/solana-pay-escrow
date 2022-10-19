@@ -91,12 +91,6 @@ pub mod solana_pay {
 
         } else {
 
-        // To be modified to return the token back to buyer
-        // token::transfer(
-        //     ctx.accounts.into_transfer_to_merchant_context(),
-        //     ctx.accounts.escrow_account.buyer_amount,
-        // )?;
-
         token::close_account(
             ctx.accounts
                 .into_close_context()
