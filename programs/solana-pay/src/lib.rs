@@ -1,3 +1,4 @@
+use std::mem::size_of;
 use anchor_lang::prelude::*;
 use solana_program::clock::Clock;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
@@ -104,7 +105,7 @@ pub struct Initialize<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(mut, signer)]
     pub merchant: AccountInfo<'info>,
-    pub mint: Account<'info, Mint>,
+    pub mint: Box<Account<'info, Mint>>,
     #[account(
         init,
         seeds = [b"token-seed".as_ref()],
@@ -113,16 +114,22 @@ pub struct Initialize<'info> {
         token::authority = merchant,
         token::mint = mint,
     )]
-    pub vault_account: Account<'info, TokenAccount>,
+    pub vault_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     #[account(
         seeds = [b"escrow".as_ref()],
         bump
     )]
     pub vault_authority: AccountInfo<'info>,
-    pub merchant_receive_token_account: Account<'info, TokenAccount>,
+    pub merchant_receive_token_account: Box<Account<'info, TokenAccount>>,
     /// change to pda, like the vault account above.
-    #[account(zero)]
+    #[account(
+        init,
+        seeds = [b"escrow".as_ref()],
+        bump,
+        payer = merchant,
+        space = size_of::<EscrowAccount>()
+    )]
     pub escrow_account: Box<Account<'info, EscrowAccount>>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: AccountInfo<'info>,

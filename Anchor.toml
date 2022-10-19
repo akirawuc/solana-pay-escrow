@@ -1,14 +1,15 @@
 [features]
 seeds = false
 skip-lint = false
-[programs.devnet]
+[programs.localnet]
 solana_pay = "HSSp1Se1k21b27EepLuKEXfntvtMZyJ4LK761GLanFLr"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+#cluster = "devnet"
+cluster = "https://rpc-mainnet-fork.epochs.studio"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
