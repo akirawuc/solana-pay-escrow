@@ -213,9 +213,12 @@ describe('solana-pay-escrow', () => {
     TOKEN_PROGRAM_ID);
 
     console.log('[INFO] Finish minting to buyer token accounts');
+    const nonce = Math.floor(Math.random()*255);
 
     const [_vault_account_pda, _vault_account_bump] = await PublicKey.findProgramAddress(
-      [Buffer.from(anchor.utils.bytes.utf8.encode("token-seed"))],
+      [Buffer.from(anchor.utils.bytes.utf8.encode("token_seed")),
+        new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
+      ],
       program.programId
     );
     vault_account_pda = _vault_account_pda;
@@ -224,7 +227,9 @@ describe('solana-pay-escrow', () => {
     console.log('[INFO] Finish creating vault pda');
 
     const [_vault_authority_pda, _vault_authority_bump] = await PublicKey.findProgramAddress(
-      [Buffer.from(anchor.utils.bytes.utf8.encode("vault_auth"))],
+      [Buffer.from(anchor.utils.bytes.utf8.encode("vault_auth")),
+        new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
+      ],
       program.programId
     );
     vault_authority_pda = _vault_authority_pda;
@@ -233,7 +238,9 @@ describe('solana-pay-escrow', () => {
     console.log('[INFO] Finish creating vault authority pda');
 
     const [_escrow_account_pda, _escrow_account_bump] = await PublicKey.findProgramAddress(
-      [Buffer.from(anchor.utils.bytes.utf8.encode("escrow"))],
+      [Buffer.from(anchor.utils.bytes.utf8.encode("escrow")),
+        new anchor.BN(nonce).toArrayLike(Buffer, "le", 8)
+      ],
       program.programId
     );
     escrow_account_pda = _escrow_account_pda;
@@ -245,16 +252,16 @@ describe('solana-pay-escrow', () => {
     // console.log(mintB);
     // console.log(program);
     console.log(`merchantMainAccount   ${merchantMainAccount.publicKey.toString()}`);
-    console.log(`mint      ${mintB.toString()}`);
+    console.log(`mint   ${mintB.toString()}`);
     console.log(`vaultAccount    ${vault_account_pda.toString()}`);
     console.log(`escrow_account_pda    ${escrow_account_pda.toString()}`);
     console.log(`merchantReceiveTokenAccount    ${merchantTokenAccountB.address.toString()}`);
-    const escrowAccount = anchor.web3.Keypair.generate();
-    let preInstructions = [] as anchor.web3.TransactionInstruction[];
-    let need_add = await program.account.escrowAccount.createInstruction(escrowAccount);
-    preInstructions.push(need_add);
-    const logs = await program.methods.initialize(
-        vault_account_bump,
+    // const escrowAccount = anchor.web3.Keypair.generate();
+    // let preInstructions = [] as anchor.web3.TransactionInstruction[];
+    // let need_add = await program.account.escrowAccount.createInstruction(escrowAccount);
+    // preInstructions.push(need_add);
+    const tx = await program.methods.initialize(
+        nonce,
         new anchor.BN(paymentAmount)).accounts(
           {
             merchant: merchantMainAccount.publicKey,
@@ -266,10 +273,14 @@ describe('solana-pay-escrow', () => {
             systemProgram: anchor.web3.SystemProgram.programId,
             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
             tokenProgram: TOKEN_PROGRAM_ID
-          }).signers([merchantMainAccount]).rpc();
+          }).signers([merchantMainAccount]).transaction();
 
-    console.log(logs);
+    console.log("[INFO] Showing the logs");
+    tx.feePayer = merchantMainAccount.publicKey;
+    tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
+    console.log(tx.serializeMessage().toString("base64"));
+    const logs = await provider.sendAndConfirm(tx, [merchantMainAccount]);
 
     // let _vault = await mintB.getAccountInfo(vault_account_pda);
 
