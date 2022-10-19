@@ -4,7 +4,7 @@ use solana_program::clock::Clock;
 use anchor_spl::token::{self, CloseAccount, Mint, SetAuthority, TokenAccount, Transfer};
 use spl_token::instruction::AuthorityType;
 
-declare_id!("5Ei4589XAC6DPgCK6ptcZW2aC8eJksVo5RGXZdymWEuH");
+declare_id!("AqGtQmx76GZcDeo3NCXeaVaa88ZFZLyWivRKQbDhfHuE");
 
 #[program]
 pub mod solana_pay {
@@ -29,9 +29,9 @@ pub mod solana_pay {
             .key;
 
         ctx.accounts.escrow_account.buyer_amount = buyer_amount;
-        // let clock = Clock::get()?;
-        // ctx.accounts.escrow_account.create_time = clock.unix_timestamp; 
-        // ctx.accounts.escrow_account.end_time = clock.unix_timestamp + 300; 
+        let clock = Clock::get()?;
+        ctx.accounts.escrow_account.create_time = clock.unix_timestamp; 
+        ctx.accounts.escrow_account.end_time = clock.unix_timestamp + 300; 
 
         let (vault_authority, _vault_authority_bump) =
             Pubkey::find_program_address(&[VAULT_AUTH_PDA_SEED], ctx.program_id);
@@ -75,7 +75,11 @@ pub mod solana_pay {
             time_now
             ) {
         token::transfer(
-            ctx.accounts.into_transfer_to_merchant_context(),
+            ctx.accounts.into_transfer_to_vault_context(),
+            ctx.accounts.escrow_account.buyer_amount,
+        )?;
+        token::transfer(
+            ctx.accounts.into_transfer_to_merchant_context().with_signer(&[&authority_seeds[..]]),
             ctx.accounts.escrow_account.buyer_amount,
         )?;
 
@@ -88,10 +92,10 @@ pub mod solana_pay {
         } else {
 
         // To be modified to return the token back to buyer
-        token::transfer(
-            ctx.accounts.into_transfer_to_merchant_context(),
-            ctx.accounts.escrow_account.buyer_amount,
-        )?;
+        // token::transfer(
+        //     ctx.accounts.into_transfer_to_merchant_context(),
+        //     ctx.accounts.escrow_account.buyer_amount,
+        // )?;
 
         token::close_account(
             ctx.accounts
@@ -225,16 +229,29 @@ impl<'info> Cancel<'info> {
 }
 
 impl<'info> Exchange<'info> {
-    fn into_transfer_to_merchant_context(
+    fn into_transfer_to_vault_context(
         &self,
     ) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         let cpi_accounts = Transfer {
             from: self.buyer_deposit_token_account.to_account_info().clone(),
             to: self
-                .merchant_receive_token_account
+                .vault_account
                 .to_account_info()
                 .clone(),
             authority: self.buyer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+    fn into_transfer_to_merchant_context(
+        &self,
+    ) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.vault_account.to_account_info().clone(),
+            to: self
+                .merchant_receive_token_account
+                .to_account_info()
+                .clone(),
+            authority: self.vault_authority.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }

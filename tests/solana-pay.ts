@@ -275,10 +275,7 @@ describe('solana-pay-escrow', () => {
     console.log(
       `merchantReceiveTokenAccount    ${merchantTokenAccountB.address.toString()}`
     );
-    // const escrowAccount = anchor.web3.Keypair.generate();
-    // let preInstructions = [] as anchor.web3.TransactionInstruction[];
-    // let need_add = await program.account.escrowAccount.createInstruction(escrowAccount);
-    // preInstructions.push(need_add);
+
     const tx = await program.methods
       .initialize(new anchor.BN(paymentAmount))
       .accounts({
@@ -310,12 +307,7 @@ describe('solana-pay-escrow', () => {
       'processed',
       TOKEN_PROGRAM_ID
     );
-    // console.log(`GOT         ${escrowAccount.publicKey}`);
 
-    // let _escrowAccount = await program.account.escrowAccount.fetch(escrow_account_pda);
-    // console.log(_escrowAccount);
-
-    // // Check that the new owner is the PDA.
     assert.ok(_vault.owner.equals(vault_authority_pda));
 
     // // Check that the values in the escrow account match what we expect.
@@ -340,19 +332,26 @@ describe('solana-pay-escrow', () => {
       tokenProgram: TOKEN_PROGRAM_ID,
     }).transaction();
 
-    tx.feePayer = merchantMainAccount.publicKey;
+    tx.feePayer = buyerMainAccount.publicKey;
     tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
     console.log(tx.serializeMessage().toString("base64"));
     const logs = await provider.sendAndConfirm(tx, [buyerMainAccount]);
+    console.log(logs)
 
-    let _buyerTokenAccountB = await mintB.getAccountInfo(buyerTokenAccountB.address);
-    let _merchantTokenAccountB = await mintB.getAccountInfo(merchantTokenAccountB.address);
+    let _buyerTokenAccountB = await getAccount(
+                  connection,
+                  buyerTokenAccountB.address as PublicKey);
 
-    assert.ok(_merchantTokenAccountB.amount.toNumber() == paymentAmount);
-    assert.ok(_buyerTokenAccountB.amount.toNumber() == 0);
+    let _merchantTokenAccountB = await getAccount(
+                  connection,
+                  merchantTokenAccountB.address as PublicKey);
+
+    assert.ok(Number(_merchantTokenAccountB.amount) == paymentAmount);
+    assert.ok(Number(_buyerTokenAccountB.amount) == 0);
   });
 
+  /*
   it("Initialize escrow and cancel escrow", async () => {
     // Put back tokens into merchant token A account.
     // let mintB = await createMint(
@@ -515,5 +514,5 @@ describe('solana-pay-escrow', () => {
 
   //   // Check all the funds are still there.
   //   assert.ok(_merchantTokenAccountA.amount.toNumber() == merchantAmount);
-  });
+  }); */
 });
